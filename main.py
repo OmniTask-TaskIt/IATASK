@@ -1,0 +1,130 @@
+"""Punto de entrada principal del microservicio AITA (AI Task Assistant)."""
+
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
+import uvicorn
+from fastapi import FastAPI
+
+from aita.application.container import build_use_cases
+from aita.application.event_dispatcher import AitaEventDispatcher
+from aita.infrastructure.config import Settings
+from aita.infrastructure.dependencies import (
+    get_ai_adapter,
+    get_event_publisher,
+    get_settings,
+    get_vector_search,
+)
+from aita.infrastructure.http.errors import register_exception_handlers
+from aita.infrastructure.http.middleware import audit_http_access
+from aita.infrastructure.http.router import router
+from aita.infrastructure.inbound.rabbitmq_consumer import RabbitMqConsumer
+from aita.infrastructure.logging_config import configure_logging
+from aita.infrastructure.outbound.rabbitmq_publisher import RabbitMqEventPublisher
+import logging
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+logger = logging.getLogger("aita.main")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Ciclo de vida de la aplicación: inicialización y apagado controlado."""
+    # 1. Configurar logging estructurado AAA
+    configure_logging()
+    logger.info("Iniciando microservicio AITA...")
+
+    # 2. Cargar configuración y dependencias
+    settings: Settings = get_settings()
+    ai_adapter = get_ai_adapter(settings)
+    vector_search = get_vector_search()
+    publisher = get_event_publisher(settings)
+
+    # 3. Construir casos de uso y despachador de eventos
+    use_cases = build_use_cases(ai=ai_adapter, vectors=vector_search, publisher=publisher)
+    app.state.use_cases = use_cases
+    app.state.settings = settings
+    app.state.publisher = publisher
+    app.state.consumer = None
+
+    # 4. Iniciar RabbitMQ si está habilitado
+    if settings.rabbitmq_enabled and settings.rabbitmq_url:
+        logger.info("RabbitMQ está habilitado. Conectando broker...")
+        if isinstance(publisher, RabbitMqEventPublisher):
+            try:
+                await publisher.connect()
+            except Exception as exc:
+                logger.warning("No se pudo conectar el publicador RabbitMQ al iniciar: %s", exc)
+
+        dispatcher = AitaEventDispatcher(use_cases=use_cases)
+        consumer = RabbitMqConsumer(
+            rabbitmq_url=settings.rabbitmq_url,
+            dispatcher=dispatcher,
+            exchange_name=settings.rabbitmq_exchange,
+            dead_letter_exchange=settings.rabbitmq_dead_letter_exchange,
+            queue_name=settings.rabbitmq_aita_queue,
+            routing_key=settings.rabbitmq_aita_routing_key,
+        )
+        try:
+            await consumer.start()
+            app.state.consumer = consumer
+            logger.info("Consumidor RabbitMQ iniciado exitosamente.")
+        except Exception as exc:
+            logger.warning("No se pudo iniciar el consumidor RabbitMQ: %s", exc)
+    else:
+        logger.info("RabbitMQ deshabilitado en configuración.")
+
+    yield
+
+    # 5. Apagado controlado
+    logger.info("Deteniendo microservicio AITA...")
+    if app.state.consumer:
+        try:
+            await app.state.consumer.stop()
+        except Exception as exc:
+            logger.error("Error deteniendo consumidor RabbitMQ: %s", exc)
+
+    if isinstance(app.state.publisher, RabbitMqEventPublisher):
+        try:
+            await app.state.publisher.close()
+        except Exception as exc:
+            logger.error("Error cerrando publicador RabbitMQ: %s", exc)
+
+    logger.info("Microservicio AITA detenido.")
+
+
+# Instancia de FastAPI
+app = FastAPI(
+    title="AITA - AI Task Assistant",
+    description="Microservicio de Inteligencia Artificial para la plataforma Task It",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# Registrar Middleware de auditoría HTTP
+app.middleware("http")(audit_http_access)
+
+# Registrar Manejadores globales de errores estandarizados
+register_exception_handlers(app)
+
+# Incluir Rutas de la API
+app.include_router(router)
+
+
+if __name__ == "__main__":
+    current_settings = get_settings()
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+    )
+

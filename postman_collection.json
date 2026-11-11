@@ -1,0 +1,229 @@
+{
+  "info": {
+    "_postman_id": "aita-microservice-collection",
+    "name": "Task It - AITA (AI Task Assistant)",
+    "description": "Colección completa de pruebas para todos los endpoints del microservicio AITA.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Verifica que el microservicio esté en ejecución."
+      }
+    },
+    {
+      "name": "1. Redacción de Tarea (Description)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idea\": \"necesito instalar tres repisas de madera en la sala y asegurar un televisor a la pared\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/tasks/description",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "tasks", "description"]
+        },
+        "description": "Genera título y descripción optimizados con IA a partir de una idea corta."
+      }
+    },
+    {
+      "name": "2. Estimación de Precio Justo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Cambio urgente de empaques y grifería de cocina por filtración de agua\",\n  \"category\": \"ARREGLOS\",\n  \"location\": \"Bogotá\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/tasks/price-estimate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "tasks", "price-estimate"]
+        },
+        "description": "Sugiere un rango de precio justo en COP basado en complejidad y ubicación."
+      }
+    },
+    {
+      "name": "3. Matchmaking - Indexar Tarea",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"task_id\": \"task-plomeria-001\",\n  \"task_name\": \"Reparación urgente de tubería rota\",\n  \"task_description\": \"Goteo constante bajo el lavaplatos que requiere cambio de tubo PVC.\",\n  \"category\": \"ARREGLOS\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/matchmaking/tasks",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "matchmaking", "tasks"]
+        },
+        "description": "Calcula el embedding semántico de la tarea y la almacena en el índice vectorial."
+      }
+    },
+    {
+      "name": "4. Matchmaking - Indexar Prestador",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"provider_id\": \"prov-carlos-001\",\n  \"display_name\": \"Carlos Fontanería\",\n  \"bio\": \"Técnico especialista con 10 años en plomería residencial, cambio de tuberías PVC y filtraciones.\",\n  \"skills\": [\"plomería\", \"tuberías\", \"reparaciones\", \"fugas\"],\n  \"location\": \"Bogotá\",\n  \"categories\": [\"ARREGLOS\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/matchmaking/providers",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "matchmaking", "providers"]
+        },
+        "description": "Indexa el perfil de un prestador para búsqueda vectorial."
+      }
+    },
+    {
+      "name": "5. Matchmaking - Búsqueda de Prestadores",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"task_id\": \"task-plomeria-001\",\n  \"task_name\": \"Reparación urgente de tubería rota\",\n  \"task_description\": \"Goteo constante bajo el lavaplatos que requiere cambio de tubo PVC.\",\n  \"category\": \"ARREGLOS\",\n  \"limit\": 5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/matchmaking/search",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "matchmaking", "search"]
+        },
+        "description": "Busca y rankea prestadores según cercanía semántica a la tarea."
+      }
+    },
+    {
+      "name": "6. Análisis de Sentimiento de Reseña",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"review_id\": \"rev-888\",\n  \"task_id\": \"task-plomeria-001\",\n  \"reviewer_id\": \"user-cliente-10\",\n  \"reviewee_id\": \"prov-carlos-001\",\n  \"rating\": 5,\n  \"comment\": \"Excelente servicio. Llegó puntual, trajo todos los materiales y dejó el área impecable. Muy recomendado.\",\n  \"created_at\": \"2025-02-01T15:00:00Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reviews/sentiment",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reviews", "sentiment"]
+        },
+        "description": "Extrae sentimiento, score numérico, palabras clave y resumen de la reseña."
+      }
+    },
+    {
+      "name": "7. AI Shield - Detección de Fraude (Limpio)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"CHAT_MESSAGE\",\n  \"source_id\": \"msg-normal-01\",\n  \"text\": \"Hola, ¿tienes disponibilidad para venir este sábado a las 9 am?\",\n  \"task_id\": \"task-plomeria-001\",\n  \"chat_id\": \"chat-100\",\n  \"sender_id\": \"user-cliente-10\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/shield/analyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "shield", "analyze"]
+        },
+        "description": "AI Shield analiza un mensaje legítimo (sin riesgo)."
+      }
+    },
+    {
+      "name": "8. AI Shield - Detección de Fraude (Alerta)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"CHAT_MESSAGE\",\n  \"source_id\": \"msg-fraud-02\",\n  \"text\": \"No pagues por la app porque cobran mucha comisión. Escríbeme directo al WhatsApp 3109998877 y te transfiero por Nequi.\",\n  \"task_id\": \"task-plomeria-001\",\n  \"chat_id\": \"chat-100\",\n  \"sender_id\": \"user-sospechoso-99\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/shield/analyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "shield", "analyze"]
+        },
+        "description": "AI Shield detecta intento de fraude/evasión de plataforma y emite alerta si RabbitMQ está activo."
+      }
+    },
+    {
+      "name": "9. Optimización de Perfil",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"provider_id\": \"prov-carlos-001\",\n  \"display_name\": \"Carlos Fontanería\",\n  \"bio\": \"Hago arreglos varios.\",\n  \"skills\": [\"plomería\"],\n  \"location\": \"Bogotá\",\n  \"categories\": [\"ARREGLOS\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/profiles/optimize",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "profiles", "optimize"]
+        },
+        "description": "Genera recomendaciones personalizadas y biografía mejorada para el prestador."
+      }
+    }
+  ]
+}
+

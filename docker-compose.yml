@@ -1,0 +1,9 @@
+services:
+  aita-service:
+    build: .
+    container_name: aita_microservice
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
