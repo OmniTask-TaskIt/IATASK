@@ -1,12 +1,12 @@
-"""Punto de entrada principal del microservicio AITA (AI Task Assistant)."""
-
 import asyncio
 import logging
+import sys
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from aita.application.container import build_use_cases
 from aita.application.event_dispatcher import AitaEventDispatcher
@@ -23,8 +23,6 @@ from aita.infrastructure.http.router import router
 from aita.infrastructure.inbound.rabbitmq_consumer import RabbitMqConsumer
 from aita.infrastructure.logging_config import configure_logging
 from aita.infrastructure.outbound.rabbitmq_publisher import RabbitMqEventPublisher
-import logging
-import sys
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,24 +36,20 @@ logger = logging.getLogger("aita.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Ciclo de vida de la aplicación: inicialización y apagado controlado."""
-    # 1. Configurar logging estructurado AAA
     configure_logging()
     logger.info("Iniciando microservicio AITA...")
 
-    # 2. Cargar configuración y dependencias
     settings: Settings = get_settings()
     ai_adapter = get_ai_adapter(settings)
     vector_search = get_vector_search()
     publisher = get_event_publisher(settings)
 
-    # 3. Construir casos de uso y despachador de eventos
     use_cases = build_use_cases(ai=ai_adapter, vectors=vector_search, publisher=publisher)
     app.state.use_cases = use_cases
     app.state.settings = settings
     app.state.publisher = publisher
     app.state.consumer = None
 
-    # 4. Iniciar RabbitMQ si está habilitado
     if settings.rabbitmq_enabled and settings.rabbitmq_url:
         logger.info("RabbitMQ está habilitado. Conectando broker...")
         if isinstance(publisher, RabbitMqEventPublisher):
@@ -84,7 +78,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield
 
-    # 5. Apagado controlado
     logger.info("Deteniendo microservicio AITA...")
     if app.state.consumer:
         try:
@@ -109,10 +102,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Registrar Middleware de auditoría HTTP
-app.middleware("http")(audit_http_access)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",                 
+        "https://taskit-frontend-ten.vercel.app"  
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],                         
+    allow_headers=["*"],                         
+)
 
-# Registrar Manejadores globales de errores estandarizados
+app.middleware("http")(audit_http_access)
 register_exception_handlers(app)
 
 # Incluir Rutas de la API
@@ -127,4 +128,3 @@ if __name__ == "__main__":
         port=8000,
         reload=False,
     )
-
