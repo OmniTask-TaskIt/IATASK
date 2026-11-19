@@ -9,12 +9,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt
 
 RUN useradd --create-home appuser
 
-COPY --chown=appuser:appuser main.py .
-COPY --chown=appuser:appuser aita/ ./aita/
+COPY --chmod=555 main.py .
+COPY --chmod=555 aita/ ./aita/
 
 USER appuser
 
